@@ -1,0 +1,15 @@
+name: musicgen
+
+channels:
+  - defaults
+
+dependencies:
+  - pip
+  - python=3.10
+  - pytorch::pytorch>=2=py3.10_cuda11.8_cudnn8.7.0_0
+  - pytorch::torchaudio>=2
+  - pytorch::torchvision>=0.15
+  - nvidia::cudatoolkit=11.7
+
+  - pip:
+    - -r ../requirements.txt
