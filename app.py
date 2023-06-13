@@ -23,7 +23,7 @@ def load_model(version):
     return MusicGen.get_pretrained(version)
 
 
-def predict(model, text, melody, duration, topk, topp, temperature, cfg_coef):
+def predict(model, text, melody, audio_prompt, duration, topk, topp, temperature, cfg_coef):
     global MODEL
     topk = int(topk)
     if MODEL is None or MODEL.name != model:
@@ -52,6 +52,14 @@ def predict(model, text, melody, duration, topk, topp, temperature, cfg_coef):
             melody_sample_rate=sr,
             progress=False
         )
+    elif audio_prompt:
+        sr, audio_prompt = audio_prompt[0], torch.from_numpy(audio_prompt[1]).to(MODEL.device).float().t().unsqueeze(0)
+        print(audio_prompt.shape)
+        if audio_prompt.ndim == 2:
+            audio_prompt = audio_prompt[None]
+
+        audio_prompt = audio_prompt[..., :int(sr * MODEL.lm.cfg.dataset.segment_duration)]
+        output = MODEL.generate_continuation(audio_prompt, sr, descriptions=[text])
     else:
         output = MODEL.generate(descriptions=[text], progress=False)
 
@@ -87,6 +95,8 @@ def ui(**kwargs):
                     text = gr.Text(label="Input Text", interactive=True)
                     melody = gr.Audio(source="upload", type="numpy", label="Melody Condition (optional)", interactive=True)
                 with gr.Row():
+                    audio_prompt = gr.Audio(source="upload", type="numpy", label="Continue an Audio Prompt", interactive=True)
+                with gr.Row():
                     submit = gr.Button("Submit")
                 with gr.Row():
                     model = gr.Radio(["melody", "medium", "small", "large"], label="Model", value="melody", interactive=True)
@@ -99,7 +109,7 @@ def ui(**kwargs):
                     cfg_coef = gr.Number(label="Classifier Free Guidance", value=3.0, interactive=True)
             with gr.Column():
                 output = gr.Video(label="Generated Music")
-        submit.click(predict, inputs=[model, text, melody, duration, topk, topp, temperature, cfg_coef], outputs=[output])
+        submit.click(predict, inputs=[model, text, melody, audio_prompt, duration, topk, topp, temperature, cfg_coef], outputs=[output])
         gr.Examples(
             fn=predict,
             examples=[
