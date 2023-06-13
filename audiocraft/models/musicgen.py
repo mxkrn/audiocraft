@@ -9,6 +9,7 @@ Main model for using MusicGen. This will combine all the required components
 and provide easy access to the generation API.
 """
 
+import numpy as np
 import os
 import typing as tp
 
@@ -195,9 +196,26 @@ class MusicGen:
         prompt = convert_audio(prompt, prompt_sample_rate, self.sample_rate, self.audio_channels)
         if descriptions is None:
             descriptions = [None] * len(prompt)
+
+        # prepare tokens
         attributes, prompt_tokens = self._prepare_tokens_and_attributes(descriptions, prompt)
         assert prompt_tokens is not None
+
+        # get start and end values for cropping prompt
+        start, end = self._sample_range(
+            self.generation_params["max_gen_len"] // 2,
+            prompt_tokens.shape[-1]
+        )
+        prompt_tokens = prompt_tokens[:, :, start:end]
         return self._generate_tokens(attributes, prompt_tokens, progress)
+
+    @staticmethod
+    def _sample_range(target_dur: int, max_dur: int) -> tuple[int, int]:
+        """Sample a random range of start and end values based on a desired
+        duration
+        """
+        start = np.random.randint(0, max_dur - target_dur)
+        return start, start + target_dur
 
     @torch.no_grad()
     def _prepare_tokens_and_attributes(
